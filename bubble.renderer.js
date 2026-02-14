@@ -231,6 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (scrollBottom > 100) showJumpIndicator(); else resetJump();
   });
 
+  // expose TGRenderer for realism engine
   window.TGRenderer = {
     appendMessage: (persona, text, opts = {}) => appendMessage(persona, text, opts),
     showTyping: (persona, duration = 2000) => showTypingIndicatorImpl(persona, duration),
