@@ -5,6 +5,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const input = document.getElementById("tg-comment-input");
   const contactAdminLink = window.CONTACT_ADMIN_LINK || "https://t.me/your_admin";
 
+  // ensure conversation memory and tickets exist
+  window.identity = window.identity || {};
+  window.identity.ConversationMemory = window.identity.ConversationMemory || {};
+  window.identity.ConversationMemory.tickets = window.identity.ConversationMemory.tickets || [];
+
   // helper: add admin broadcast (image+caption+CTA)
   function postAdminBroadcast(){
     const admin = window.identity ? window.identity.Admin : { name:"Admin", avatar:"assets/admin.jpg", isAdmin:true };
@@ -17,9 +22,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 ✅ To verify or contact admin, use the “Contact Admin” button below.`;
     const image = "assets/broadcast.jpg";
-    const timestamp = new Date(2025,2,14,10,0,0); // March 14, 2025 10:00
-    // append broadcast bubble (outgoing)
-    const id = window.TGRenderer.appendMessage(admin, "Broadcast", { timestamp, type:"outgoing", image, caption });
+    const timestamp = new Date();
+    const id = window.TGRenderer.appendMessage(admin, "Broadcast", { timestamp, type:"incoming", image, caption });
     return { id, caption, image };
   }
 
@@ -49,44 +53,68 @@ document.addEventListener("DOMContentLoaded", () => {
     pinBanner.classList.remove("hidden");
   }
 
-  // show pinned notice under the bubble
   function postPinNotice(){
     const systemPersona = { name: "System", avatar: "assets/admin.jpg" };
     window.TGRenderer.appendMessage(systemPersona, "Admin pinned a message", { timestamp: new Date(), type:"incoming" });
   }
 
-  // flow: admin posts broadcast then pins after a short delay
+  // helper ticket API
+  window.sendAdminTicket = function(authorName, question, messageId=null){
+    const ticket = { id: "ticket_" + Date.now() + "_" + Math.floor(Math.random()*9999), author: authorName, question, messageId, createdAt: Date.now(), status: "open" };
+    window.identity.ConversationMemory.tickets.push(ticket);
+    const admin = window.identity ? window.identity.Admin : { name:"Admin", avatar:"assets/admin.jpg", isAdmin:true };
+    window.TGRenderer.appendMessage(admin, `New ticket from ${authorName}: ${question.split("\n")[0].slice(0,120)}`, { timestamp: new Date(), type: "incoming" });
+    return ticket;
+  };
+
+  // small admin responder simulation
+  function startAdminTicketResponder(){
+    setInterval(()=>{
+      const tickets = window.identity.ConversationMemory.tickets.filter(t => t.status === "open");
+      if(tickets.length === 0) return;
+      const t = tickets[Math.floor(Math.random()*tickets.length)];
+      t.status = "in_progress";
+      const admin = window.identity ? window.identity.Admin : { name:"Admin", avatar:"assets/admin.jpg", isAdmin:true };
+      window.TGRenderer.showTyping(admin, 1400 + Math.random()*1200);
+      setTimeout(()=>{
+        const replyText = "Thanks — please contact via the pinned Contact Admin button for verification.";
+        const replyToId = t.messageId || null;
+        window.TGRenderer.appendMessage(admin, replyText, { timestamp: new Date(), type: "incoming", replyToId, replyToPreview: t.question });
+        t.status = "closed";
+      }, 1800 + Math.random()*1400);
+    }, 25_000 + Math.random()*60_000);
+  }
+
+  // initial broadcast + pin
   const broadcast = postAdminBroadcast();
   setTimeout(()=>{
     postPinNotice();
     showPinBanner(broadcast.image, broadcast.caption);
-    // auto-hide banner after 12s (but keep for demo); keep sticky
-    // comment out auto-hide to keep persistent
-    // setTimeout(()=> pinBanner.classList.add("hidden"), 12000);
   }, 2200);
 
-  // handle sendMessage event from interactions.js
+  // sendMessage handling
   document.addEventListener("sendMessage", (ev) => {
     const text = ev.detail.text;
-    // treat as user message (use synthetic persona)
     const persona = window.identity ? window.identity.getRandomPersona() : { name:"You", avatar:"assets/default-avatar.jpg" };
-    // before posting show typing indicator then append
+    // persona cooldown guard
+    if(persona.lastPostAt && Date.now() - persona.lastPostAt < 30_000){
+      // throttle persona - continue; but still post as persona (kept intentionally simple)
+    } else {
+      persona.lastPostAt = Date.now();
+    }
     window.TGRenderer.showTyping(persona, 1000 + Math.random()*1500);
     setTimeout(()=> {
-      window.TGRenderer.appendMessage(persona, text, { timestamp: new Date(), type:"outgoing" });
-      // admin may reply to questions (simulate admin monitoring)
+      const msgId = window.TGRenderer.appendMessage(persona, text, { timestamp: new Date(), type:"outgoing" });
       if(text.toLowerCase().includes("admin") || text.toLowerCase().includes("contact")){
-        // admin types and publicly replies after a short delay
         const admin = window.identity ? window.identity.Admin : { name:"Admin", avatar:"assets/admin.jpg", isAdmin:true };
         window.TGRenderer.showTyping(admin, 1600 + Math.random()*1200);
         setTimeout(()=> {
-          window.TGRenderer.appendMessage(admin, "Thanks — please contact via the button on the pinned message. We will respond there.", { timestamp: new Date(), type:"outgoing" });
+          window.TGRenderer.appendMessage(admin, "Thanks — please contact via the button on the pinned message. We will respond there.", { timestamp: new Date(), type:"incoming", replyToId: msgId, replyToPreview: text });
         }, 1800 + Math.random()*1200);
       }
     }, 1200 + Math.random()*400);
   });
 
-  // handle autoReply events from interactions (context menu flow)
   document.addEventListener("autoReply", (ev) => {
     const { parentText, persona, text } = ev.detail;
     window.TGRenderer.showTyping(persona, 1000 + Math.random()*1200);
@@ -95,8 +123,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1200 + Math.random()*800);
   });
 
-  // when realism triggers trending reaction, we can show replies (realism triggers appendMessage with replyToText)
-  // message jumper handled by bubble-renderer
-
-  // ensure message jumper behavior when user scrolls up (already handled by bubble-renderer)
+  // start admin responder
+  startAdminTicketResponder();
 });
