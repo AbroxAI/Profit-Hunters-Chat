@@ -196,22 +196,31 @@ window.realism = {
   postFromPoolV11, triggerTrendingReactionV11, simulateRandomCrowdV11, ensurePoolV11, LONG_TERM_POOL_V11
 };
 
-/* start logic waiting for TGRenderer safely */
-function startRealismIfReady(){
-  const check = () => {
+/* ===== START REALISM SAFELY ===== */
+function startRealismSafely(){
+  const maxAttempts = 50;
+  let attempts = 0;
+
+  const tryStart = () => {
+    attempts++;
     if(window.TGRenderer && typeof window.TGRenderer.appendMessage === "function"){
       ensurePoolV11(300);
       postFromPoolV11(50);
       simulateRandomCrowdV11(8000);
+      console.log("[Realism] Started successfully with TGRenderer.");
+    } else if(attempts < maxAttempts){
+      setTimeout(tryStart, 200);
     } else {
-      setTimeout(check, 200); // retry until TGRenderer exists
+      console.warn("[Realism] TGRenderer not found. Realism engine did not start.");
     }
   };
-  check();
+
+  tryStart();
 }
 
+// start after DOM ready
 if(document.readyState === "complete" || document.readyState === "interactive"){
-  setTimeout(startRealismIfReady, 50);
+  setTimeout(startRealismSafely, 50);
 } else {
-  document.addEventListener("DOMContentLoaded", ()=> setTimeout(startRealismIfReady, 50));
+  document.addEventListener("DOMContentLoaded", ()=> setTimeout(startRealismSafely, 50));
 }
