@@ -30,7 +30,7 @@
       <button id="tg-options" class="tg-options-btn" aria-label="Options"><i data-lucide="more-vertical"></i></button>
     </header>
 
-    <!-- Floating Pin Banner -->
+    <!-- Floating Pin Banner (will be shown when pinned) -->
     <div id="tg-pin-banner" class="tg-pin-banner hidden" role="region" aria-live="polite"></div>
 
     <!-- Comments container -->
@@ -58,33 +58,11 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>lucide.createIcons();</script>
 
-  <!-- Core modules -->
+  <!-- Core modules (realism waits for renderer so order is flexible) -->
   <script src="identity-personas.js"></script>
   <script src="realism-engine-v11.js"></script>
   <script src="bubble-renderer.js"></script>
   <script src="interactions.js"></script>
   <script src="app.js"></script>
-
-  <script>
-    // === Ensure TGRenderer is ready before starting realism ===
-    document.addEventListener("DOMContentLoaded", () => {
-      function startRealism() {
-        if(!window.TGRenderer || !window.realism) {
-          setTimeout(startRealism, 100);
-          return;
-        }
-
-        // initial content
-        window.realism.ensurePoolV11(300);
-        window.realism.postFromPoolV11(50);
-        window.realism.simulateRandomCrowdV11(8000);
-
-        // keep infinite pool active
-        setInterval(() => { window.realism.ensurePoolV11(500); }, 30000);
-      }
-
-      startRealism();
-    });
-  </script>
 </body>
 </html>
