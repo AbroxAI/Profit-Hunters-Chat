@@ -1,5 +1,5 @@
 // identity-personas.js
-// Persona engine v2 (tuned) + avatar pool
+// Persona engine v2 (tuned) + avatar pool with debug/logging
 
 const Admin = {
   name: "Profit Hunter 🌐",
@@ -32,7 +32,7 @@ const CRYPTO_ALIASES=["BlockKing","PumpMaster","CryptoWolf","FomoKing","Hodler",
 const TITLES=["Trader","Investor","HODLer","Analyst","Whale","Shark","Mooner","Scalper","SwingTrader","DeFi","Miner","Blockchain","NFT","Quant","Signals","Mentor"];
 const EMOJIS=["💸","🔥","💯","✨","😎","👀","📈","🚀","💰","🤑","🎯","🏆","🤖","🎉","🍀","📊","⚡","💎","👑","🦄","🧠","🔮","🪙","🥂","💡","🛸","📉","💲","📱","💬"];
 
-/* ---------- AVATAR POOL (40 mixed avatar urls) ---------- */
+/* ---------- AVATAR POOL (40+ mixed avatar urls) ---------- */
 const AVATAR_POOL = [
   "https://randomuser.me/api/portraits/men/1.jpg",
   "https://randomuser.me/api/portraits/men/12.jpg",
@@ -76,6 +76,7 @@ const AVATAR_POOL = [
   "https://ui-avatars.com/api/?name=User+01&background=random&size=256"
 ];
 
+/* ---------- SLANG ---------- */
 const SLANG = {
   western:["bro","ngl","lowkey","fr","tbh","wild","solid move","bet","dope","lit","clutch","savage","meme","cheers","respect","hype","flex","mad","cap","no cap","real talk","yo","fam","legit","sick","bangin","cringe"],
   african:["my guy","omo","chai","no wahala","sharp move","gbam","yawa","sweet","jollof","palava","chop","fine boy","hustle","ehen","kolo","sisi","big man","on point","correct","wahala no","naija","bros","guyz","mumu","gbosa","vibe"],
@@ -84,13 +85,15 @@ const SLANG = {
   eastern:["comrade","strong move","not bad","serious play","da","top","okey","nu","excellent","good work","correct","bravo","fine","nice move","pro","cheers","well done","solid play","serious one","good lad","da bro","top move","excellent play"]
 };
 
-const TOTAL_PERSONAS = 250; // lowered for initial load
+/* ---------- Synthetic Persona Pool ---------- */
+const TOTAL_PERSONAS = 250;
 const SyntheticPool = [];
 const UsedNames = new Set();
 const UsedAvatarURLs = new Set();
 const PostComments = {};
 const ConversationMemory = {};
 
+/* ---------- helpers ---------- */
 function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 function maybe(p){ return Math.random() < p; }
 function rand(max=9999){ return Math.floor(Math.random()*max); }
@@ -107,15 +110,12 @@ function buildUniqueName(gender){
 }
 
 function buildUniqueAvatar(name,gender){
-  // Try pool first (prefer stable human-like avatars)
   const unused = AVATAR_POOL.filter(u => !UsedAvatarURLs.has(u));
   if(unused.length){
-    const pick = unused[Math.floor(Math.random()*unused.length)];
+    const pick = random(unused);
     UsedAvatarURLs.add(pick);
     return pick;
   }
-
-  // fallback to previous generator (dicebear/robohash/ui-avatars)
   let avatar;
   let attempts = 0;
   do{
@@ -168,11 +168,14 @@ function generateSyntheticPersona(){
   return persona;
 }
 
+/* ---------- populate pool ---------- */
 for(let i=0;i<TOTAL_PERSONAS;i++){ SyntheticPool.push(generateSyntheticPersona()); }
 
+/* ---------- persona getters ---------- */
 function getRandomPersona(){ return random(SyntheticPool); }
 function getPersona(opts={}){ return opts.type==="admin" ? Admin : getRandomPersona(); }
 
+/* ---------- generate human comment ---------- */
 function generateHumanComment(persona, baseText, targetName=null){
   let text = baseText;
   if(maybe(0.5)){
@@ -206,8 +209,12 @@ function simulateCrowdReaction(baseText){
   return replies;
 }
 
-// Expose
+/* ---------- export ---------- */
 window.identity = {
   Admin, getRandomPersona, getPersona, generateHumanComment, getLastSeenStatus, simulateCrowdReaction, ConversationMemory,
-  EMOJIS  // expose emoji pool for other modules
+  EMOJIS
 };
+
+/* ---------- DEBUG ---------- */
+console.log("Identity engine loaded. Personas:", SyntheticPool.length, "Admin ready:", Admin.name);
+console.log("Avatar pool ready:", AVATAR_POOL.length, "Used avatars:", UsedAvatarURLs.size);
