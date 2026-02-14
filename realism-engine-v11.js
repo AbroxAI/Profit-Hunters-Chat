@@ -1,5 +1,5 @@
 // realism-engine-v11.js
-// Ultra-Realism Engine V11 (integrated, dedupe + bounded pools)
+// Ultra-Realism Engine V11 (patched for TGRenderer readiness + dedupe + bounded pools)
 
 // light helpers
 function random(arr){return arr[Math.floor(Math.random()*arr.length)];}
@@ -73,7 +73,9 @@ function generateTimestamp(offsetDays=0){
 }
 
 /* persona helper */
-function getRandomPersonaFromIdentity(){ return window.identity ? window.identity.getRandomPersona() : {name:"User", avatar:"assets/default-avatar.jpg", isAdmin:false}; }
+function getRandomPersonaFromIdentity(){ 
+  return window.identity ? window.identity.getRandomPersona() : {name:"User", avatar:"assets/default-avatar.jpg", isAdmin:false}; 
+}
 
 /* generate trading message (dedupe-aware) */
 function generateTradingCommentV11(){
@@ -143,9 +145,7 @@ function postFromPoolV11(count=1){
     const item = LONG_TERM_POOL_V11.shift();
     const raw = `${item.persona.name}||${item.text}||${item.timestamp.getTime()}`;
     const h = djb2Hash(raw);
-    if(RECENT_MESSAGE_HASHES.has(h)){
-      continue;
-    }
+    if(RECENT_MESSAGE_HASHES.has(h)) continue;
     (function(localItem, idx, hash){
       setTimeout(()=> {
         if(window.TGRenderer && window.TGRenderer.appendMessage){
@@ -196,27 +196,20 @@ window.realism = {
   postFromPoolV11, triggerTrendingReactionV11, simulateRandomCrowdV11, ensurePoolV11, LONG_TERM_POOL_V11
 };
 
-/* start logic waiting for TGRenderer */
+/* start logic waiting for TGRenderer safely */
 function startRealismIfReady(){
-  if(window.TGRenderer && typeof window.TGRenderer.appendMessage === "function"){
-    ensurePoolV11(300);
-    postFromPoolV11(50);
-    simulateRandomCrowdV11(8000);
-  } else {
-    let attempts = 0;
-    const t = setInterval(()=>{
-      attempts++;
-      if(window.TGRenderer && typeof window.TGRenderer.appendMessage === "function"){
-        clearInterval(t);
-        ensurePoolV11(300);
-        postFromPoolV11(50);
-        simulateRandomCrowdV11(8000);
-      } else if(attempts > 40){
-        clearInterval(t);
-      }
-    }, 200);
-  }
+  const check = () => {
+    if(window.TGRenderer && typeof window.TGRenderer.appendMessage === "function"){
+      ensurePoolV11(300);
+      postFromPoolV11(50);
+      simulateRandomCrowdV11(8000);
+    } else {
+      setTimeout(check, 200); // retry until TGRenderer exists
+    }
+  };
+  check();
 }
+
 if(document.readyState === "complete" || document.readyState === "interactive"){
   setTimeout(startRealismIfReady, 50);
 } else {
