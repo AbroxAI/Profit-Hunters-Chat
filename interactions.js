@@ -8,11 +8,10 @@ document.addEventListener("DOMContentLoaded", ()=> {
 
   const metaLine = document.getElementById("tg-meta-line");
 
-  // initialize meta (these values can be updated dynamically)
   if(metaLine) metaLine.textContent = `${(window.MEMBER_COUNT||1284).toLocaleString()} members, ${window.ONLINE_COUNT||128} online`;
 
   function toggleSendButton(){
-    const hasText = input.value.trim().length > 0;
+    const hasText = input && input.value && input.value.trim().length > 0;
     if(hasText){
       sendBtn.classList.remove("hidden");
       emojiBtn.classList.add("hidden");
@@ -24,9 +23,8 @@ document.addEventListener("DOMContentLoaded", ()=> {
     }
   }
 
-  input.addEventListener("input", toggleSendButton);
+  if(input) input.addEventListener("input", toggleSendButton);
 
-  // send event dispatch
   function doSendMessage(){
     const text = input.value.trim();
     if(!text) return;
@@ -36,33 +34,38 @@ document.addEventListener("DOMContentLoaded", ()=> {
     toggleSendButton();
   }
 
-  sendBtn.addEventListener("click", doSendMessage);
-  input.addEventListener("keydown", (e)=>{
+  if(sendBtn) sendBtn.addEventListener("click", doSendMessage);
+  if(input) input.addEventListener("keydown", (e)=>{
     if(e.key === "Enter"){
       e.preventDefault();
       doSendMessage();
     }
   });
 
-  // Contact Admin button handling: when Contact Admin is clicked in pin banner we'll open link
+  // Contact Admin button handling
   document.addEventListener("click", (e) => {
-    const target = e.target.closest && e.target.closest(".contact-admin-btn");
-    if(target){
-      const href = target.dataset.href || contactAdminLink;
-      window.open(href, "_blank");
+    const el = (e.target && e.target.closest) ? e.target.closest(".contact-admin-btn") : null;
+    if(el){
+      // try ticketing if available: reference last message id
+      const lastBubble = document.querySelector('#tg-comments-container .tg-bubble[data-id]:last-child');
+      const lastId = lastBubble ? lastBubble.dataset.id : null;
+      const name = "Guest";
+      const q = "User requests contact";
+      if(typeof window.sendAdminTicket === 'function'){
+        window.sendAdminTicket(name, q, lastId);
+      } else {
+        const href = el.dataset.href || contactAdminLink;
+        window.open(href, "_blank");
+      }
       e.preventDefault();
     }
   });
 
   // messageContext event (right click on message) default actions
   document.addEventListener("messageContext", (ev)=>{
-    const info = ev.detail;
-    // simple default: respond with a reply (simulate user choosing reply)
-    // create a prompt flow: show input prefilled with @username or trigger reply UI
+    const info = ev.detail || {};
     const persona = window.identity ? window.identity.getRandomPersona() : {name:"User", avatar:"assets/default-avatar.jpg"};
-    // simulate thinking then reply via realism/tracking
     window.setTimeout(()=>{
-      // create reply via event for app.js to handle
       const replyText = window.identity ? window.identity.generateHumanComment(persona, "Nice point!") : "Nice!";
       const replyEv = new CustomEvent("autoReply", { detail: { parentText: info.text, persona, text: replyText } });
       document.dispatchEvent(replyEv);
