@@ -1,5 +1,5 @@
 // identity-personas.js
-// Persona engine v2 (as discussed)
+// Persona engine v2 (tuned) + avatar pool
 
 const Admin = {
   name: "Profit Hunter 🌐",
@@ -32,6 +32,50 @@ const CRYPTO_ALIASES=["BlockKing","PumpMaster","CryptoWolf","FomoKing","Hodler",
 const TITLES=["Trader","Investor","HODLer","Analyst","Whale","Shark","Mooner","Scalper","SwingTrader","DeFi","Miner","Blockchain","NFT","Quant","Signals","Mentor"];
 const EMOJIS=["💸","🔥","💯","✨","😎","👀","📈","🚀","💰","🤑","🎯","🏆","🤖","🎉","🍀","📊","⚡","💎","👑","🦄","🧠","🔮","🪙","🥂","💡","🛸","📉","💲","📱","💬"];
 
+/* ---------- AVATAR POOL (40 mixed avatar urls) ---------- */
+const AVATAR_POOL = [
+  "https://randomuser.me/api/portraits/men/1.jpg",
+  "https://randomuser.me/api/portraits/men/12.jpg",
+  "https://randomuser.me/api/portraits/men/14.jpg",
+  "https://randomuser.me/api/portraits/men/21.jpg",
+  "https://randomuser.me/api/portraits/men/31.jpg",
+  "https://randomuser.me/api/portraits/men/45.jpg",
+  "https://randomuser.me/api/portraits/women/2.jpg",
+  "https://randomuser.me/api/portraits/women/11.jpg",
+  "https://randomuser.me/api/portraits/women/18.jpg",
+  "https://randomuser.me/api/portraits/women/26.jpg",
+  "https://i.pravatar.cc/300?img=5",
+  "https://i.pravatar.cc/300?img=10",
+  "https://i.pravatar.cc/300?img=15",
+  "https://i.pravatar.cc/300?img=20",
+  "https://i.pravatar.cc/300?img=25",
+  "https://i.pravatar.cc/300?img=30",
+  "https://ui-avatars.com/api/?name=Alex&background=random&size=256",
+  "https://ui-avatars.com/api/?name=Maria&background=random&size=256",
+  "https://ui-avatars.com/api/?name=Sam&background=random&size=256",
+  "https://ui-avatars.com/api/?name=Priya&background=random&size=256",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=alpha",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=bravo",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=charlie",
+  "https://api.dicebear.com/7.x/identicon/svg?seed=delta",
+  "https://robohash.org/community_01.png",
+  "https://robohash.org/community_02.png",
+  "https://api.multiavatar.com/John.png",
+  "https://api.multiavatar.com/Maria.png",
+  "https://joeschmoe.io/api/v1/random",
+  "https://joeschmoe.io/api/v1/female/2",
+  "https://joeschmoe.io/api/v1/male/3",
+  "https://avatars.dicebear.com/api/initials/JK.svg?background=%23b4cde6",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=foxtrot",
+  "https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=golf",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=hotel",
+  "https://api.dicebear.com/7.x/shapes/svg?seed=india",
+  "https://thispersondoesnotexist.com/image",
+  "https://api.dicebear.com/7.x/fun-emoji/svg?seed=juliet",
+  "https://api.dicebear.com/7.x/identicon/svg?seed=kilo",
+  "https://ui-avatars.com/api/?name=User+01&background=random&size=256"
+];
+
 const SLANG = {
   western:["bro","ngl","lowkey","fr","tbh","wild","solid move","bet","dope","lit","clutch","savage","meme","cheers","respect","hype","flex","mad","cap","no cap","real talk","yo","fam","legit","sick","bangin","cringe"],
   african:["my guy","omo","chai","no wahala","sharp move","gbam","yawa","sweet","jollof","palava","chop","fine boy","hustle","ehen","kolo","sisi","big man","on point","correct","wahala no","naija","bros","guyz","mumu","gbosa","vibe"],
@@ -40,19 +84,7 @@ const SLANG = {
   eastern:["comrade","strong move","not bad","serious play","da","top","okey","nu","excellent","good work","correct","bravo","fine","nice move","pro","cheers","well done","solid play","serious one","good lad","da bro","top move","excellent play"]
 };
 
-const AVATAR_SOURCES=[
-  {type:"randomuser"}, {type:"pravatar"}, {type:"robohash"}, {type:"multiavatar"},
-  {type:"dicebear",style:"avataaars"}, {type:"dicebear",style:"bottts"},
-  {type:"dicebear",style:"identicon"}, {type:"dicebear",style:"open-peeps"},
-  {type:"dicebear",style:"micah"}, {type:"dicebear",style:"pixel-art"},
-  {type:"dicebear",style:"thumbs"}, {type:"dicebear",style:"lorelei"},
-  {type:"dicebear",style:"notionists"}, {type:"dicebear",style:"rings"},
-  {type:"dicebear",style:"initials"}, {type:"dicebear",style:"shapes"},
-  {type:"dicebear",style:"fun-emoji"}, {type:"dicebear",style:"adventurer"},
-  {type:"dicebear",style:"adventurer-neutral"}, {type:"ui-avatars"}
-];
-
-const TOTAL_PERSONAS = 2000; // reduce for performance (you can re-increase)
+const TOTAL_PERSONAS = 250; // lowered for initial load
 const SyntheticPool = [];
 const UsedNames = new Set();
 const UsedAvatarURLs = new Set();
@@ -75,15 +107,24 @@ function buildUniqueName(gender){
 }
 
 function buildUniqueAvatar(name,gender){
-  let avatar;
-  if(maybe(0.12)){
-    const initial = name.charAt(0).toUpperCase();
-    avatar = `https://ui-avatars.com/api/?name=${initial}&background=random&size=256`;
-    if(!UsedAvatarURLs.has(avatar)){ UsedAvatarURLs.add(avatar); return avatar; }
+  // Try pool first (prefer stable human-like avatars)
+  const unused = AVATAR_POOL.filter(u => !UsedAvatarURLs.has(u));
+  if(unused.length){
+    const pick = unused[Math.floor(Math.random()*unused.length)];
+    UsedAvatarURLs.add(pick);
+    return pick;
   }
+
+  // fallback to previous generator (dicebear/robohash/ui-avatars)
+  let avatar;
   let attempts = 0;
   do{
-    const source = random(AVATAR_SOURCES);
+    const source = random([
+      {type:"randomuser"}, {type:"pravatar"}, {type:"robohash"}, {type:"multiavatar"},
+      {type:"dicebear",style:"avataaars"}, {type:"dicebear",style:"bottts"},
+      {type:"dicebear",style:"identicon"}, {type:"dicebear",style:"open-peeps"},
+      {type:"dicebear",style:"pixel-art"}, {type:"ui-avatars"}
+    ]);
     switch(source.type){
       case "randomuser": avatar = `https://randomuser.me/api/portraits/${gender==="male"?"men":"women"}/${rand(99)}.jpg`; break;
       case "pravatar": avatar = `https://i.pravatar.cc/300?img=${rand(70)}`; break;
@@ -120,7 +161,8 @@ function generateSyntheticPersona(){
     rhythm: Math.random()*2,
     lastSeen: Date.now()-rand(6000000),
     memory: [],
-    sentiment: random(["bullish","neutral","bearish"])
+    sentiment: random(["bullish","neutral","bearish"]),
+    lastPostAt: 0
   };
   ConversationMemory[persona.name] = persona.memory;
   return persona;
@@ -128,7 +170,6 @@ function generateSyntheticPersona(){
 
 for(let i=0;i<TOTAL_PERSONAS;i++){ SyntheticPool.push(generateSyntheticPersona()); }
 
-// helpers/exposed API
 function getRandomPersona(){ return random(SyntheticPool); }
 function getPersona(opts={}){ return opts.type==="admin" ? Admin : getRandomPersona(); }
 
@@ -167,5 +208,6 @@ function simulateCrowdReaction(baseText){
 
 // Expose
 window.identity = {
-  Admin, getRandomPersona, getPersona, generateHumanComment, getLastSeenStatus, simulateCrowdReaction, ConversationMemory
+  Admin, getRandomPersona, getPersona, generateHumanComment, getLastSeenStatus, simulateCrowdReaction, ConversationMemory,
+  EMOJIS  // expose emoji pool for other modules
 };
